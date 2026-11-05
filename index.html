@@ -1,6 +1,35 @@
 <!doctype html>
 <html lang="en">
-<head>
+<head><!-- Google tag -->
+<script async src="https://www.googletagmanager.com/gtm.js?id=GTM-NZL9LVJ9"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+</script>
+
+<!-- Microsoft Clarity -->
+<script type="text/javascript">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "z8tmvv41hq");
+</script>
+
+<!-- Name tagging via personal links: ?ref=name -->
+<script>
+  (function(){
+    var p = new URLSearchParams(window.location.search).get('ref');
+    var ref = p || (function(){ try { return localStorage.getItem('ref'); } catch(e){ return null; } })();
+    if (!ref) return;
+    try { localStorage.setItem('ref', ref); } catch(e){}
+    gtag('set', 'user_properties', { visitor_ref: ref });
+    gtag('event', 'tagged_visit', { visitor_ref: ref });
+    window.clarity && clarity('set', 'visitor', ref);
+    window.clarity && clarity('identify', ref);
+  })();
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aditya Bhandare | Founder's Office, strategy and operations</title>
