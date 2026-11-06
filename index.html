@@ -301,6 +301,23 @@ footer{padding:40px 0 56px;font-size:14px;color:var(--muted)}
 .iss span{font-size:14px;color:var(--muted)}
 .tile.coral{background:var(--coral);color:#fff;border:0}
 .tile.big{justify-content:center;gap:18px}
+.ms{display:grid;gap:16px}
+.ms-row{display:grid;gap:16px}
+.ms-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ms-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:980px){.ms-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:680px){.ms-3,.ms-4{grid-template-columns:1fr}}
+.mt{border-radius:22px;padding:26px;display:flex;flex-direction:column;justify-content:flex-start;gap:12px;min-height:180px;background:#fff;border:1px solid var(--line)}
+.mt p{margin:0;font-size:16px;line-height:1.45;font-weight:500}
+.mt .n{font:700 clamp(40px,4.2vw,58px)/1 var(--display);letter-spacing:-.03em}
+.mt.sun{background:var(--sun);color:var(--ink);border:0}
+.mt.leaf{background:var(--leaf);color:#fff;border:0}
+.mt.ink{background:var(--ink);color:#fff;border:0}
+.mt.win .trophy{width:32px;height:32px;color:var(--sun)}
+.mt.win .mw{font:700 30px/1 var(--display);letter-spacing:-.02em}
+.mt.cert{min-height:0;flex-direction:row;align-items:baseline;gap:16px;flex-wrap:wrap;padding:24px 26px}
+.mt.cert .cl{color:var(--muted);font-size:17px}
+.mt.cert .cn{font:700 clamp(26px,3vw,36px)/1.1 var(--display);letter-spacing:-.02em}
 </style>
 </head>
 <body>
@@ -338,21 +355,17 @@ footer{padding:40px 0 56px;font-size:14px;color:var(--muted)}
 
 <section><div class="wrap">
 <div class="shead"><h2>Milestones</h2></div>
-<div class="bento">
-<div class="tile big"><b data-count="400" data-pre="$" data-suf="M+">$400M+</b><span>in funding, operations and go-to-market outcomes across climate, agriculture and policy</span></div>
-<div class="tile leaf"><b data-count="270" data-suf="K+">270K+</b><span>farmers reached through outreach</span></div>
-<div class="tile ink"><svg class="trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b style="font-size:30px;display:block;margin-bottom:6px">Winner</b>NASPAA-Batten International Policy Competition</span></div>
-<div class="tile"><b>Finalist</b><span>Top 2 of 400+ teams, Sasyaniti, IIM Visakhapatnam x Arya.ag</span></div>
-<div class="tile sky"><svg class="trophy" viewBox="0 0 48 48" style="color:#fff"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b style="font-size:30px;display:block;margin-bottom:6px">Winner</b>Zero to Alpha Founder Sprint, 2025</span></div>
-<div class="tile coral"><svg class="trophy" viewBox="0 0 48 48" style="color:#fff"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b style="font-size:30px;display:block;margin-bottom:6px">Winner</b>Data Visualization One-Day Challenge, 2025</span></div>
-<a class="tile certtile" href="#certs"><b data-count="28">28</b><span>certifications in policy, management, climate finance and more <em>See all</em></span></a>
-<div class="tile wide"><b>1 / 327</b><span>Founding President, Spirituality Club, Masters’ Union</span></div>
+<div class="ms">
+<div class="ms-row ms-3">
+<div class="mt sun"><b class="n" data-count="400" data-pre="$" data-suf="M+">$400M+</b><p>in funding, operations and go-to-market outcomes across climate, agriculture and policy</p></div>
+<div class="mt leaf"><b class="n" data-count="270" data-suf="K+">270K+</b><p>farmers reached through outreach</p></div>
+<div class="mt ink"><b class="n">1 / 327</b><p>Founding President, Spirituality Club, Masters’ Union</p></div>
 </div>
-</div></section>
-
-<section id="certs"><div class="wrap">
-<div class="shead"><h2>Certificates and awards</h2><p>Certifications in policy, management and climate finance from</p></div>
-<div class="issgrid"><div class="iss"><b>World Bank</b><span>Global Environment Facility</span></div><div class="iss"><b>UNDP</b><span>Climate finance and nature</span></div><div class="iss"><b>Asian Development Bank Institute</b><span>Sustainable finance and policy</span></div><div class="iss"><b>UNITAR and UN-Habitat</b><span>Cities and climate change</span></div><div class="iss"><b>UN ESCAP</b><span>Resource efficiency</span></div><div class="iss"><b>UNFCCC</b><span>Paris Agreement, Article 6.2</span></div><div class="iss"><b>IISD</b><span>Nature-based infrastructure</span></div><div class="iss"><b>ICFA Luxembourg</b><span>Climate fund management</span></div><div class="iss"><b>Hebrew University of Jerusalem</b><span>Innovation management</span></div><div class="iss"><b>Corporate Finance Institute</b><span>ESG</span></div><div class="iss"><b>Centre for Civil Society</b><span>Public policy</span></div><div class="iss"><b>Jain University</b><span>General management</span></div></div>
+<div class="ms-row ms-4">
+<div class="mt win"><svg class="trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><b class="mw">Winner</b><p>NASPAA-Batten International Policy Competition</p></div><div class="mt win"><svg class="trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><b class="mw">Winner</b><p>Zero to Alpha Founder Sprint, 2025</p></div><div class="mt win"><svg class="trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><b class="mw">Winner</b><p>Data Visualization One-Day Challenge, 2025</p></div><div class="mt win"><svg class="trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><b class="mw">Finalist</b><p>Top 2 of 400+ teams, Sasyaniti, IIM Visakhapatnam x Arya.ag</p></div>
+</div>
+<div class="mt cert"><p class="cl">Certifications from</p><b class="cn">World Bank, UNDP and ADB</b></div>
+</div>
 </div></section>
 
 <section class="mapsec"><div class="wrap">
