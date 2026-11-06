@@ -222,7 +222,7 @@ nav .cta{background:var(--sun);color:var(--ink);opacity:1;padding:10px 18px;bord
 .timeline li:nth-child(even) .when{order:3}
 
 /* beyond desk */
-.mosaic{display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:260px 260px;gap:18px}
+.mosaic{display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:260px 260px;grid-auto-rows:260px;gap:18px}
 .mosaic figure{margin:0;position:relative;border-radius:22px;overflow:hidden}
 .mosaic figure:first-child{grid-row:span 2}
 .mosaic img{width:100%;height:100%;object-fit:cover}
@@ -275,6 +275,32 @@ footer{padding:40px 0 56px;font-size:14px;color:var(--muted)}
   .jcard{grid-template-columns:1fr}.jcard img{grid-row:auto;margin-bottom:10px}
   .sticker b{font-size:24px}
 }
+
+.certtile{text-decoration:none;color:inherit;transition:border-color .2s,transform .2s}.certtile:hover{border-color:var(--ink);transform:translateY(-3px)}
+.certtile em{display:block;font-style:normal;font-weight:700;color:var(--sky);margin-top:6px}
+.cgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:860px){.cgrid{grid-template-columns:1fr}}
+.cgroup{background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px 24px 10px;border-top:6px solid var(--sun)}
+.cgroup.leaf{border-top-color:var(--leaf)}.cgroup.violet{border-top-color:var(--violet)}.cgroup.full{grid-column:1/-1}.cgroup.full ul{columns:2;column-gap:40px}.cgroup.full li{break-inside:avoid}@media (max-width:860px){.cgroup.full ul{columns:1}}.cgroup.sky{border-top-color:var(--sky)}.cgroup.coral{border-top-color:var(--coral)}
+.chead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.chead h3{font-size:22px;font-weight:700}
+.chead span{font:800 28px var(--display);color:var(--muted)}
+.cgroup ul{list-style:none;margin:0;padding:0}
+.cgroup li{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line)}
+.cgroup li:first-child{border-top:0}
+.cgroup li b{display:block;font-weight:600;font-size:16.5px;line-height:1.35;color:var(--text)}
+.cgroup li span{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.cmeta{flex:none;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.cmeta time{font-size:14px;color:var(--muted);white-space:nowrap}
+.cmeta a{font-size:14px;font-weight:700;color:var(--sky);text-decoration:none}.cmeta a:hover{text-decoration:underline}
+.issgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+@media (max-width:980px){.issgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.iss{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 20px;display:flex;flex-direction:column;gap:6px;min-height:118px;justify-content:center;transition:border-color .2s,transform .2s}
+.iss:hover{border-color:var(--ink);transform:translateY(-3px)}
+.iss b{font:700 20px/1.2 var(--display);color:var(--ink)}
+.iss span{font-size:14px;color:var(--muted)}
+.tile.coral{background:var(--coral);color:#fff;border:0}
+.tile.big{justify-content:center;gap:18px}
 </style>
 </head>
 <body>
@@ -318,10 +344,15 @@ footer{padding:40px 0 56px;font-size:14px;color:var(--muted)}
 <div class="tile ink"><svg class="trophy" viewBox="0 0 48 48"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b style="font-size:30px;display:block;margin-bottom:6px">Winner</b>NASPAA-Batten International Policy Competition</span></div>
 <div class="tile"><b>Finalist</b><span>Top 2 of 400+ teams, Sasyaniti, IIM Visakhapatnam x Arya.ag</span></div>
 <div class="tile sky"><svg class="trophy" viewBox="0 0 48 48" style="color:#fff"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b style="font-size:30px;display:block;margin-bottom:6px">Winner</b>Zero to Alpha Founder Sprint, 2025</span></div>
-<div class="tile"><b>Winner</b><span>Data Visualization One-Day Challenge, 2025</span></div>
-<div class="tile"><b data-count="2">2</b><span>ADBI certifications in sustainable finance and green investment</span></div>
+<div class="tile coral"><svg class="trophy" viewBox="0 0 48 48" style="color:#fff"><path d="M14 8h20v10a10 10 0 0 1-20 0zM14 12H7v3a7 7 0 0 0 7 7M34 12h7v3a7 7 0 0 1-7 7M24 28v8M16 40h16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b style="font-size:30px;display:block;margin-bottom:6px">Winner</b>Data Visualization One-Day Challenge, 2025</span></div>
+<a class="tile certtile" href="#certs"><b data-count="28">28</b><span>certifications in policy, management, climate finance and more <em>See all</em></span></a>
 <div class="tile wide"><b>1 / 327</b><span>Founding President, Spirituality Club, Masters’ Union</span></div>
 </div>
+</div></section>
+
+<section id="certs"><div class="wrap">
+<div class="shead"><h2>Certificates and awards</h2><p>Certifications in policy, management and climate finance from</p></div>
+<div class="issgrid"><div class="iss"><b>World Bank</b><span>Global Environment Facility</span></div><div class="iss"><b>UNDP</b><span>Climate finance and nature</span></div><div class="iss"><b>Asian Development Bank Institute</b><span>Sustainable finance and policy</span></div><div class="iss"><b>UNITAR and UN-Habitat</b><span>Cities and climate change</span></div><div class="iss"><b>UN ESCAP</b><span>Resource efficiency</span></div><div class="iss"><b>UNFCCC</b><span>Paris Agreement, Article 6.2</span></div><div class="iss"><b>IISD</b><span>Nature-based infrastructure</span></div><div class="iss"><b>ICFA Luxembourg</b><span>Climate fund management</span></div><div class="iss"><b>Hebrew University of Jerusalem</b><span>Innovation management</span></div><div class="iss"><b>Corporate Finance Institute</b><span>ESG</span></div><div class="iss"><b>Centre for Civil Society</b><span>Public policy</span></div><div class="iss"><b>Jain University</b><span>General management</span></div></div>
 </div></section>
 
 <section class="mapsec"><div class="wrap">
@@ -357,6 +388,8 @@ footer{padding:40px 0 56px;font-size:14px;color:var(--muted)}
 <figure><img src="field-research.jpg" alt="On-ground market research" style="object-position:center 40%"><figcaption><b>On-ground market research</b><span>Understanding the customer first-hand</span></figcaption></figure>
 <figure><img src="data-viz-award.jpg" alt="Data Visualisation One Day Challenge" style="object-position:center 35%"><figcaption><b>Data Visualisation One Day Challenge</b><span>Masters’ Union x Har Ghar Puja, November 2025</span></figcaption></figure>
 <figure><img src="bridging-borders.jpg" alt="Bridging Borders" style="object-position:center 55%"><figcaption><b>Bridging Borders</b><span>Youth Dialogue between India and China</span></figcaption></figure>
+<figure><img src="yoga-session.jpg" alt="Yoga session in a community hall" style="object-position:center 50%"><figcaption><b>Yoga sessions</b><span>With Isha Outreach</span></figcaption></figure>
+<figure><img src="rally-for-rivers-yoga.jpg" alt="Rally for Rivers yoga session" style="object-position:center 40%"><figcaption><b>Rally for Rivers</b><span>Yoga session during the campaign</span></figcaption></figure>
 </div>
 </div></section>
 
