@@ -1,6 +1,7 @@
 # India Climate Startup Map
 
-An interactive map of 1,818 Indian climate tech startups (597 funded or VC-backed), with a similarity view and an India map view. Every dot is a company, and companies that do similar things sit close together.
+An interactive map of 1,818 Indian climate tech startups across 140 cities, 597 of them funded or VC-backed, built from Crustdata, climate VC portfolios and funding news.
+Switch between a similarity map, where startups that build similar things cluster together, and an India map that pins each one to its city. Live: https://india-climate-map-beta.vercel.app
 
 - Search by startup, sector, city or founder
 - Filter by 16 climate sub-sectors
