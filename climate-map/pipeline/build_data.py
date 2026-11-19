@@ -8,6 +8,8 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
 import umap
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import geo
 
 ROOT = sys.argv[1]
 OUT = sys.argv[2]
@@ -144,6 +146,7 @@ for f in files:
                 "year": b.get("year_founded"), "headcount": b.get("employee_count_range") or "",
                 "linkedin": b.get("professional_network_url") or "", "ctype": b.get("company_type") or "",
                 "city": city_of(c.get("locations", {})), "logo": b.get("logo_permalink") or "",
+                "city_raw": (c.get("locations") or {}).get("city") or "", "state_raw": (c.get("locations") or {}).get("state") or "",
                 "src": "crustdata", "funded": False, "round": "", "investors": "", "total": None,
             }
         if not rec["logo"] and b.get("logo_permalink"):
@@ -158,8 +161,11 @@ for f in files:
 print("crustdata unique", len(rows), "funded", sum(r["funded"] for r in rows.values()))
 
 BACKED = re.compile(r"incubat|accelerat|\bdpiit\b|startup india|\bgrant\b|award|winner|backed by|\braised\b|funded by|seed fund|cohort|fellowship|y ?combinator|\byc [sw]\d|nasscom|birac|\bnidhi\b|atal incubation|t-hub|ksum|kitven|nsrcel|ciie|villgro|social alpha|sine iit|iit madras|iit bombay|iit delhi|iit kanpur|iisc|startup tn|elevate|shell e4|investors?\b", re.I)
-SERVICE = re.compile(r"\bepc\b|install(er|ation services)|dealer|distributor|franchise|trading|traders|authori[sz]ed (channel )?partner|channel partner|empanel|consultan|advisory|consulting|\bamc\b|o&m services|turnkey|contractor|manpower|recruit|training (institute|centre|center)|agency", re.I)
-TECHY = re.compile(r"platform|software|saas|\bai\b|machine learning|\biot\b|patent|deep-?tech|proprietary|r&d|our technology|technology startup|app\b|marketplace|robot|sensor|satellite|we (design|develop|build|manufacture)|manufactur", re.I)
+SERVICE = re.compile(r"\bepc\b|install(er|ation services)|dealer|distributor|franchise|trading|traders|supplier|exporter|fabricat|pollution control board|authori[sz]ed (channel )?partner|channel partner|empanel|consultan|advisory|consulting|\bamc\b|o&m services|turnkey|contractor|manpower|recruit|training (institute|centre|center)|agency", re.I)
+TECHY = re.compile(r"platform|software|saas|\bai\b|machine learning|\biot\b|patent|deep-?tech|proprietary|r&d|our technology|technology startup|app\b|marketplace|robot|sensor|satellite|we (design|develop|build)", re.I)
+OLDCO = re.compile(r"establish\w* (in )?(19\d\d|200[0-7])|since (19\d\d|200[0-7])|\b([2-9]\d)\+? years (of|in|ago)|conglomerate|decades of (experience|excellence)", re.I)
+ACAD = re.compile(r"universit|college|\biit\b|institute|department|\blab(oratory)?\b,|research group|foundation$|trust$|society$|association", re.I)
+NAVJUNK = re.compile(r"HOMEABOUT|ProductsBlog|Contact\s*Us\s*Home", re.I)
 NONPROFIT = {"Nonprofit", "Self-Employed", "Government Agency", "Educational", "Educational Institution"}
 
 kept, dropped = [], Counter()
@@ -171,6 +177,8 @@ for r in rows.values():
         dropped["media/events"] += 1; continue
     if not CLIMATE_GATE.search(d):
         dropped["not climate"] += 1; continue
+    if ACAD.search(r["name"]) or NAVJUNK.search(d):
+        dropped["university lab / junk profile"] += 1; continue
     if r["headcount"] in BIG or r["headcount"] == "1001-5000":
         dropped["large corporate"] += 1; continue
     if not r["funded"]:
@@ -180,6 +188,8 @@ for r in rows.values():
             dropped["founded before 2008"] += 1; continue
         if SERVICE.search(d) and not TECHY.search(d):
             dropped["service firm (installer/dealer/consultancy)"] += 1; continue
+        if OLDCO.search(d):
+            dropped["legacy business (decades old)"] += 1; continue
     sec = classify(d, r["name"])
     if not sec:
         dropped["no sector"] += 1; continue
@@ -217,7 +227,7 @@ for s_ in seed:
     bk = sorted(backers.get(dom, set()) | backers.get(norm_name(s_["name"]), set()))
     rec = {
         "name": s_["name"], "domain": dom, "desc_full": s_["desc"], "year": int(s_["founded"]) if s_["founded"].isdigit() else None,
-        "headcount": "", "linkedin": "", "city": s_["hq"] or "India", "sector": s_["sector"], "src": "research",
+        "headcount": "", "linkedin": "", "city": s_["hq"] or "India", "city_raw": s_["hq"], "state_raw": "", "sector": s_["sector"], "src": "research",
         "founders": s_["founders"], "funding": s_["funding"], "hiring": s_["hiring"], "logo": "", "tier": "f",
         "backers": ", ".join(bk), "round": "", "investors": "",
     }
@@ -229,7 +239,7 @@ for s_ in seed:
         rec["domain"] = rec["domain"] or hit["domain"]
         rec["year"] = rec["year"] or hit["year"]
         if rec["city"] in ("", "India"):
-            rec["city"] = hit["city"]
+            rec["city"] = hit["city"]; rec["city_raw"] = hit["city_raw"]; rec["state_raw"] = hit["state_raw"]
         rec["embed_extra"] = hit["desc_full"]
         rec["round"] = hit.get("round", ""); rec["investors"] = hit.get("investors", "")
         rec["src"] = "research+crustdata"
@@ -246,9 +256,10 @@ for r in kept:
 seen, dedup = set(), []
 for r in final:
     key = r["domain"] or norm_name(r["name"])
-    if key in seen:
+    nk = norm_name(r["name"])
+    if key in seen or (nk and nk in seen):
         continue
-    seen.add(key)
+    seen.add(key); seen.add(nk)
     dedup.append(r)
 final = dedup
 print("final", len(final), Counter(r["sector"] for r in final))
@@ -312,6 +323,22 @@ for k in range(K):
     cluster_out.append({"name": pick.title().replace("Ev ", "EV ").replace(" Ev", " EV"), "x": round(float(cx), 2),
                         "y": round(float(cy), 2), "size": int(len(idx))})
 
+# ---------- geocode ----------
+geo_stats = Counter()
+for r in final:
+    g = geo.geocode(r.get("city_raw") or r.get("city"), r.get("state_raw", ""))
+    if g:
+        r["gcity"], r["gstate"], r["lon"], r["lat"], r["prec"] = g
+        geo_stats[r["prec"]] += 1
+    else:
+        r["lon"] = r["lat"] = None; r["prec"] = None; geo_stats["none"] += 1
+print("geocoded", dict(geo_stats))
+
+LABEL_RENAME = {"Fruits Vegetables": "Fresh Produce", "Alternatives Everyday": "Bamboo & Eco Products", "Alternatives EVeryday": "Bamboo & Eco Products",
+                "Artificial Intelligence": "Climate AI & Software", "Value Chain": "Agri Value Chains", "Iot Sensors": "IoT Sensors"}
+for l in cluster_out:
+    l["name"] = LABEL_RENAME.get(l["name"], l["name"])
+
 # ---------- export ----------
 pts = []
 for i, r in enumerate(final):
@@ -322,7 +349,8 @@ for i, r in enumerate(final):
         "s": sec,
         "d": short_desc(r["desc_full"]),
         "w": r["domain"],
-        "c": r["city"],
+        "c": (r.get("gcity") or (r["city"] if r["city"] not in ("India",) and len(r["city"]) < 30 else "")),
+        "st": r.get("gstate") or "",
         "y0": r["year"],
         "h": r["headcount"],
         "li": r["linkedin"],
@@ -337,9 +365,18 @@ for i, r in enumerate(final):
         "iv": r.get("investors", ""),
         "sz": round(HEAD_MULT.get(r["headcount"], 1.0) * {"f": 1.3, "b": 1.05, "o": 0.85}[r.get("tier", "o")], 2),
         "sim": [int(j) for j in similar[i]],
+        "lon": r.get("lon"), "lat": r.get("lat"), "prec": r.get("prec"),
     })
+geo.spread(pts)
+for p in pts:
+    lon, lat = p.pop("glon", None), p.pop("glat", None)
+    p.pop("lon"); p.pop("lat")
+    if lon is not None:
+        p["gx"], p["gy"] = geo.proj(lon, lat)
+    p["gp"] = p.pop("prec") or ""
+json.dump(geo.india_geometry(), open(OUT.rsplit("/", 1)[0] + "/india.json", "w"), separators=(",", ":"))
 meta = {"sectors": {k: {"name": v[0], "color": v[1]} for k, v in SECTORS.items()},
-        "count": len(pts), "built": "2026-11-20", "tiers": dict(Counter(p["t"] for p in pts)), "dropped": json.load(open(f"{ROOT}/dropped_counts.json"))}
+        "count": len(pts), "built": "2026-11-20", "tiers": dict(Counter(p["t"] for p in pts)), "geo": dict(geo_stats), "dropped": json.load(open(f"{ROOT}/dropped_counts.json"))}
 json.dump({"meta": meta, "points": pts, "labels": cluster_out}, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
 print("wrote", OUT, len(pts), "points", len(cluster_out), "labels")
 print([c["name"] for c in cluster_out])

@@ -99,6 +99,11 @@ a{color:var(--accent2)}
 #foot a{color:var(--muted)}
 #foot a:hover{color:var(--text)}
 #hint{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:15;font-size:11.5px;color:var(--muted);background:rgba(10,14,18,.7);border:1px solid var(--line);padding:6px 12px;border-radius:20px;pointer-events:none;white-space:nowrap}
+#modeSw{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:22;display:flex;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:3px;gap:2px;backdrop-filter:blur(8px)}
+#modeSw button{background:none;border:none;color:var(--muted);padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12.8px;font-weight:500;white-space:nowrap}
+#modeSw button.on{background:linear-gradient(90deg,#16392e,#173640);color:var(--text)}
+#geoNote{position:fixed;left:50%;top:58px;transform:translateX(-50%);z-index:21;font-size:11.5px;color:var(--muted);display:none;text-shadow:0 1px 3px #000}
+body.geo #geoNote{display:block}
 #menuBtn{display:none}
 body.dopen #foot,body.dopen #hint{display:none}
 body.dopen #zoom{right:390px}
@@ -117,6 +122,8 @@ body.dopen #zoom{right:390px}
   #detail.open{transform:none}
   #hint,#foot{display:none}
   #zoom{bottom:16px;right:12px}
+  #modeSw{top:auto;bottom:16px}
+  #geoNote{display:none!important}
 }
 </style>
 </head>
@@ -181,13 +188,16 @@ body.dopen #zoom{right:390px}
 <h4>Filtered out</h4>
 <p id="aboutDrop"></p>
 <h4>How the map works</h4>
-<p>Each description becomes a text vector (TF-IDF + SVD). UMAP places similar vectors close together, so companies doing similar things cluster. Colours show the sub-sector; bigger dots mean larger teams or confirmed funding. "Most similar startups" are the 10 nearest neighbours by text similarity.</p>
+<p><b>Similarity map:</b> each description becomes a text vector (TF-IDF + SVD). UMAP places similar vectors close together, so companies doing similar things cluster. Colours show the sub-sector; bigger dots mean larger teams or confirmed funding. "Most similar startups" are the 10 nearest neighbours by text similarity.</p>
+<p><b>India map:</b> each startup is pinned to its headquarters city (GeoNames gazetteer), or to its state when only the state is known. Dots in a city are fanned out so they don't overlap. Click a state to highlight its startups. Boundaries: <a href="https://github.com/datameet/maps" target="_blank" rel="noopener">DataMeet</a> (CC BY 2.5 India).</p>
 <p style="color:var(--muted)">Coverage is strongest for funded companies. Missing a startup? Data as of November 2026.</p>
 </div></div>
+<div id="modeSw"><button data-m="sim" class="on">Similarity map</button><button data-m="geo">India map</button></div>
+<div id="geoNote"></div>
 <div id="tip"></div>
 <div id="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button></div>
 <div id="hint">Scroll to zoom · Drag to pan · Click a dot for details and look-alikes</div>
-<div id="foot"><a href="#" id="aboutLink">About the data</a> · Built by <a href="https://bhandareaditya.github.io/" target="_blank" rel="noopener">Aditya Bhandare</a> · Data: VC portfolios, Inc42, Tracxn, Crustdata (Nov 2026)<br>Positions come from text embeddings of each startup's description</div>
+<div id="foot"><a href="#" id="aboutLink">About the data</a> · Built by <a href="https://bhandareaditya.github.io/" target="_blank" rel="noopener">Aditya Bhandare</a> · Data: VC portfolios, Inc42, Tracxn, Crustdata (Nov 2026)<br>Similarity map from text embeddings · India map boundaries: DataMeet (CC BY 2.5 IN)</div>
 
 <script>
 (function(){
@@ -196,6 +206,9 @@ const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 let W=0,H=0,dpr=1, pts=[], labels=[], sectors={}, view={x:0,y:0,k:1};
 let visible=[], activeSecs=new Set(), activeTiers=new Set(["f","b","o"]), onlyHire=false, showLabels=true;
 let selected=-1, hoverSim=-1, hoverPt=-1, highlight=null;
+let mode="sim", T=0, india=null, statePaths=[], distPaths=[], hoverState=-1, stateSel=-1, stCount={}, cityCount=[], anim=null;
+const PX=i=>{const p=pts[i]; return p.gx==null?p.x:p.x+(p.gx-p.x)*T;};
+const PY=i=>{const p=pts[i]; return p.gy==null?p.y:p.y+(p.gy-p.y)*T;};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -210,7 +223,16 @@ function resize(){
 const sx=x=>x*view.k+view.x, sy=y=>y*view.k+view.y;
 const wx=px=>(px-view.x)/view.k, wy=py=>(py-view.y)/view.k;
 
-function fit(){
+function fitView(m){
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  if(m==="geo"&&india){for(const st of india.states)for(const r of st.r)for(let q=0;q<r.length;q+=2){const x=r[q],y=r[q+1];if(x<a)a=x;if(x>c)c=x;if(y<b)b=y;if(y>d)d=y;}}
+  else for(const p of pts){if(p.x<a)a=p.x;if(p.x>c)c=p.x;if(p.y<b)b=p.y;if(p.y>d)d=p.y;}
+  const mobile=W<720, padL=mobile?20:340, padR=mobile?20:40, padT=mobile?120:56, padB=mobile?70:40;
+  const k=Math.max(0.05,Math.min(Math.max(80,W-padL-padR)/(c-a),Math.max(80,H-padT-padB)/(d-b)));
+  return {k, x:padL+(Math.max(80,W-padL-padR)-(c-a)*k)/2-a*k, y:padT+(Math.max(80,H-padT-padB)-(d-b)*k)/2-b*k};
+}
+function fit(){ const v=fitView(mode); view.k=v.k; view.x=v.x; view.y=v.y; }
+function fitOld(){
   let a=1e9,b=1e9,c=-1e9,d=-1e9;
   for(const p of pts){if(p.x<a)a=p.x;if(p.x>c)c=p.x;if(p.y<b)b=p.y;if(p.y>d)d=p.y;}
   const mobile=W<720, padL=mobile?50:350, padR=mobile?50:60, padT=mobile?150:50, padB=mobile?90:50;
@@ -227,14 +249,15 @@ function draw(){
   const g=ctx.createRadialGradient(W*.55,H*.5,50,W*.55,H*.5,Math.max(W,H)*.7);
   g.addColorStop(0,"rgba(46,209,154,0.035)"); g.addColorStop(1,"rgba(0,0,0,0)");
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  const r0=Math.max(1.3,1.6*Math.sqrt(view.k));
+  if(T>0&&india) drawIndia();
+  const r0=Math.max(1.3,1.6*Math.sqrt(view.k))*(1-0.25*T);
   const dim=selected>=0||highlight;
   // glow layer
   ctx.globalCompositeOperation="lighter";
   for(let i=0;i<pts.length;i++){
     if(!visible[i]) continue;
     if(highlight&&!highlight.has(i)) continue;
-    const p=pts[i], X=sx(p.x), Y=sy(p.y); if(X<-20||X>W+20||Y<-20||Y>H+20) continue;
+    const p=pts[i], X=sx(PX(i)), Y=sy(PY(i)); if(X<-20||X>W+20||Y<-20||Y>H+20) continue;
     const col=sectors[p.s].color, r=r0*p.sz;
     ctx.fillStyle=hexA(col, dim?0.05:0.10);
     ctx.beginPath(); ctx.arc(X,Y,Math.min(r*3.2,r+9),0,6.2832); ctx.fill();
@@ -242,21 +265,22 @@ function draw(){
   ctx.globalCompositeOperation="source-over";
   for(let i=0;i<pts.length;i++){
     if(!visible[i]) continue;
-    const p=pts[i], X=sx(p.x), Y=sy(p.y); if(X<-10||X>W+10||Y<-10||Y>H+10) continue;
+    const p=pts[i], X=sx(PX(i)), Y=sy(PY(i)); if(X<-10||X>W+10||Y<-10||Y>H+10) continue;
     const inHL=!highlight||highlight.has(i);
     const col=sectors[p.s].color, r=r0*p.sz;
-    ctx.globalAlpha= !inHL ? 0.07 : (selected>=0 ? 0.28 : 0.92);
+    const fade=p.gx==null?1-T:1; if(fade<=0.02) continue;
+    ctx.globalAlpha= fade*(!inHL ? 0.07 : (selected>=0 ? 0.28 : 0.92));
     ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X,Y,r,0,6.2832); ctx.fill();
     if(p.src==="r" && inHL && view.k>1.3){ctx.globalAlpha=Math.min(1,ctx.globalAlpha+.1);ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=.8;ctx.stroke();}
   }
   ctx.globalAlpha=1;
   if(selected>=0){
-    const s=pts[selected], X=sx(s.x), Y=sy(s.y);
+    const s=pts[selected], X=sx(PX(selected)), Y=sy(PY(selected));
     for(const j of s.sim){const n=pts[j]; if(!visible[j]) continue; const hot=j===hoverSim;
       ctx.strokeStyle=hot?"#fff":"rgba(120,220,200,.45)"; ctx.lineWidth=hot?2:1;
-      ctx.beginPath(); ctx.moveTo(X,Y); ctx.lineTo(sx(n.x),sy(n.y)); ctx.stroke();}
+      ctx.beginPath(); ctx.moveTo(X,Y); ctx.lineTo(sx(PX(j)),sy(PY(j))); ctx.stroke();}
     for(const j of s.sim){const n=pts[j]; if(!visible[j]) continue; const hot=j===hoverSim, rr=r0*n.sz+(hot?4:2);
-      ctx.fillStyle=sectors[n.s].color; ctx.beginPath(); ctx.arc(sx(n.x),sy(n.y),rr,0,6.2832); ctx.fill();
+      ctx.fillStyle=sectors[n.s].color; ctx.beginPath(); ctx.arc(sx(PX(j)),sy(PY(j)),rr,0,6.2832); ctx.fill();
       ctx.strokeStyle=hot?"#fff":"rgba(255,255,255,.7)"; ctx.lineWidth=hot?2:1.2; ctx.stroke();}
     ctx.fillStyle=sectors[s.s].color; ctx.beginPath(); ctx.arc(X,Y,r0*s.sz+5,0,6.2832); ctx.fill();
     ctx.strokeStyle="#fff"; ctx.lineWidth=2.5; ctx.stroke();
@@ -264,15 +288,55 @@ function draw(){
     ctx.font="500 11px Inter,system-ui,sans-serif";
     const ord=[...s.sim].sort((a,b)=>(b===hoverSim)-(a===hoverSim));
     for(const j of ord){const n=pts[j]; if(!visible[j]) continue; const t=n.n.length>26?n.n.slice(0,25)+"…":n.n;
-      const LX=sx(n.x), LY=sy(n.y)-r0*n.sz-11, w=ctx.measureText(t).width+6; let ok=true;
+      const LX=sx(PX(j)), LY=sy(PY(j))-r0*n.sz-11, w=ctx.measureText(t).width+6; let ok=true;
       for(const q of placed){if(Math.abs(q.x-LX)<(q.w+w)/2&&Math.abs(q.y-LY)<15){ok=false;break;}}
       if(!ok&&j!==hoverSim) continue; placed.push({x:LX,y:LY,w,h:15});
       label(t,LX,LY,j===hoverSim?12.5:11,j===hoverSim?"#fff":"rgba(220,235,240,.85)");}
     label(s.n,X,Y-r0*s.sz-16,14,"#fff");
   }
-  if(hoverPt>=0 && hoverPt!==selected){const p=pts[hoverPt]; ctx.strokeStyle="#fff"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(sx(p.x),sy(p.y),r0*p.sz+3,0,6.2832); ctx.stroke();}
-  if(showLabels && selected<0){ drawClusterLabels(); if(view.k>2.6) drawNames(); }
+  if(hoverPt>=0 && hoverPt!==selected){const p=pts[hoverPt]; ctx.strokeStyle="#fff"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(sx(PX(hoverPt)),sy(PY(hoverPt)),r0*p.sz+3,0,6.2832); ctx.stroke();}
+  if(showLabels && selected<0){ if(T<0.5){ drawClusterLabels(); if(view.k>2.6) drawNames(); } else { drawGeoLabels(); if(view.k>9) drawNames(); } }
 }
+function drawIndia(){
+  ctx.save(); ctx.globalAlpha=T;
+  ctx.setTransform(dpr*view.k,0,0,dpr*view.k,dpr*view.x,dpr*view.y);
+  for(let i=0;i<statePaths.length;i++){const sp=statePaths[i];
+    ctx.fillStyle= i===stateSel?"rgba(46,209,154,0.10)": i===hoverState?"rgba(90,209,230,0.07)":"rgba(22,32,40,0.55)"; ctx.fill(sp.p);}
+  if(view.k>1.6){ ctx.strokeStyle="rgba(120,150,170,0.13)"; ctx.lineWidth=0.6/view.k; for(const dp of distPaths) ctx.stroke(dp); }
+  ctx.strokeStyle="rgba(150,180,200,0.38)"; ctx.lineWidth=1/view.k; for(const sp of statePaths) ctx.stroke(sp.p);
+  if(stateSel>=0){ctx.strokeStyle="rgba(46,209,154,0.9)"; ctx.lineWidth=2/view.k; ctx.stroke(statePaths[stateSel].p);}
+  ctx.restore(); ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function drawGeoLabels(){
+  const placed=[]; const fadeA=Math.min(1,(T-0.5)*2);
+  const tryLab=(t,X,Y,fs,col)=>{ctx.font=`600 ${fs}px Inter,system-ui,sans-serif`; const w=ctx.measureText(t).width+8,h=fs+6;
+    if(X<-60||X>W+60||Y<-20||Y>H+20) return; for(const b of placed){if(Math.abs(b.x-X)<(b.w+w)/2&&Math.abs(b.y-Y)<(b.h+h)/2) return;}
+    placed.push({x:X,y:Y,w,h}); ctx.globalAlpha=fadeA; label(t,X,Y,fs,col);};
+  const cityN=view.k<1.4?8:view.k<3?22:60;
+  for(const c of cityCount.slice(0,cityN)) tryLab(`${c.n} · ${c.c}`,sx(c.x),sy(c.y)-14,Math.min(14,10.5+Math.sqrt(c.c)/4),"rgba(255,255,255,.95)");
+  if(view.k<3) for(const st of india.states){const n=stCount[st.n]||0; if(!n) continue; tryLab(`${st.n} ${n}`,sx(st.cx),sy(st.cy),10.5,"rgba(170,195,210,.75)");}
+  ctx.globalAlpha=1;
+}
+function stateAt(mx,my){
+  if(!india||T<0.99) return -1; const X=wx(mx),Y=wy(my);
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); let hit=-1;
+  for(let i=0;i<statePaths.length;i++){ if(ctx.isPointInPath(statePaths[i].p,X,Y)){hit=i;break;} }
+  ctx.restore(); return hit;
+}
+function setMode(m){
+  if(m===mode&&!anim) return; mode=m; document.body.classList.toggle("geo",m==="geo");
+  document.querySelectorAll("#modeSw button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
+  try{history.replaceState(null,"",m==="geo"?"#india":location.pathname);}catch(e){}
+  closeDetail(); stateSel=-1; if(highlight&&highlight._state){highlight=null;}
+  const t0=T, t1=m==="geo"?1:0, v0={...view}, v1=fitView(m), start=performance.now(), dur=950;
+  recompute();
+  anim=true;
+  const step=now=>{ let u=Math.min(1,(now-start)/dur); const e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+    T=t0+(t1-t0)*e; view.k=v0.k+(v1.k-v0.k)*e; view.x=v0.x+(v1.x-v0.x)*e; view.y=v0.y+(v1.y-v0.y)*e; draw();
+    if(u<1) requestAnimationFrame(step); else {anim=null; recompute();} };
+  requestAnimationFrame(step);
+}
+document.querySelectorAll("#modeSw button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 function label(t,x,y,fs,col){
   ctx.font=`600 ${fs}px Inter,system-ui,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.lineWidth=4; ctx.strokeStyle="rgba(5,8,10,.92)"; ctx.strokeText(t,x,y); ctx.fillStyle=col; ctx.fillText(t,x,y);
@@ -292,7 +356,7 @@ function drawNames(){
   const placed=[];
   const order=[...pts.keys()].filter(i=>visible[i]&&(!highlight||highlight.has(i))).sort((a,b)=>pts[b].sz-pts[a].sz);
   ctx.font="500 11px Inter,system-ui,sans-serif";
-  for(const i of order){const p=pts[i],X=sx(p.x),Y=sy(p.y)-9; if(X<0||X>W||Y<0||Y>H) continue;
+  for(const i of order){const p=pts[i],X=sx(PX(i)),Y=sy(PY(i))-9; if(X<0||X>W||Y<0||Y>H) continue;
     const w=ctx.measureText(p.n).width; let ok=true;
     for(const b of placed){if(Math.abs(b.x-X)<(b.w+w)/2+4&&Math.abs(b.y-Y)<13){ok=false;break;}}
     if(!ok) continue; placed.push({x:X,y:Y,w}); label(p.n.length>28?p.n.slice(0,27)+"…":p.n,X,Y,11,"rgba(230,238,242,.85)");
@@ -302,14 +366,14 @@ function drawNames(){
 function pick(px,py){
   const tol=Math.max(7,1.6*Math.sqrt(view.k)*2.5); let best=-1,bd=1e9;
   for(let i=0;i<pts.length;i++){ if(!visible[i]) continue; if(highlight&&!highlight.has(i)) continue;
-    const dx=sx(pts[i].x)-px, dy=sy(pts[i].y)-py, d=dx*dx+dy*dy; if(d<bd&&d<tol*tol){bd=d;best=i;}}
+    const dx=sx(PX(i))-px, dy=sy(PY(i))-py, d=dx*dx+dy*dy; if(d<bd&&d<tol*tol){bd=d;best=i;}}
   return best;
 }
 
 // ---------- interaction ----------
 let drag=false,moved=false,lx=0,ly=0;
 cv.addEventListener("mousedown",e=>{drag=true;moved=false;lx=e.clientX;ly=e.clientY;cv.classList.add("drag");});
-addEventListener("mouseup",e=>{cv.classList.remove("drag"); if(drag&&!moved&&e.target===cv){const i=pick(e.clientX,e.clientY); if(i>=0) select(i,false); else closeDetail();} drag=false;});
+addEventListener("mouseup",e=>{cv.classList.remove("drag"); if(drag&&!moved&&e.target===cv){const i=pick(e.clientX,e.clientY); if(i>=0) select(i,false); else { closeDetail(); if(mode==="geo") clickState(stateAt(e.clientX,e.clientY)); }} drag=false;});
 addEventListener("mousemove",e=>{
   if(drag){const dx=e.clientX-lx,dy=e.clientY-ly; if(Math.abs(dx)+Math.abs(dy)>3) moved=true; view.x+=dx; view.y+=dy; lx=e.clientX; ly=e.clientY; draw(); return;}
   if(e.target!==cv){if(hoverPt>=0){hoverPt=-1;$("tip").style.display="none";draw();} return;}
@@ -317,7 +381,9 @@ addEventListener("mousemove",e=>{
   if(i!==hoverPt){hoverPt=i; draw();}
   if(i>=0){const p=pts[i]; tip.innerHTML=`<b>${esc(p.n)}</b><span>${esc(sectors[p.s].name)} · ${esc(p.c||"India")}</span>`;
     tip.style.display="block"; tip.style.left=Math.min(e.clientX+14,W-290)+"px"; tip.style.top=(e.clientY+14)+"px"; cv.style.cursor="pointer";}
-  else{tip.style.display="none"; cv.style.cursor="";}
+  else{ const si=stateAt(e.clientX,e.clientY); if(si!==hoverState){hoverState=si; draw();}
+    if(si>=0){const n=india.states[si].n; tip.innerHTML=`<b>${esc(n)}</b><span>${(stCount[n]||0).toLocaleString()} startups · click to highlight</span>`; tip.style.display="block"; tip.style.left=Math.min(e.clientX+14,W-290)+"px"; tip.style.top=(e.clientY+14)+"px"; cv.style.cursor="pointer";}
+    else {tip.style.display="none"; cv.style.cursor="";} }
 });
 function zoomAt(f,mx,my){const bx=wx(mx),by=wy(my); view.k=Math.max(.2,Math.min(view.k*f,60)); view.x=mx-bx*view.k; view.y=my-by*view.k; draw();}
 cv.addEventListener("wheel",e=>{e.preventDefault(); zoomAt(Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY);},{passive:false});
@@ -341,7 +407,7 @@ function select(i,center){
   if(!visible[i]){activeSecs.add(p.s); activeTiers.add(p.t); onlyHire=false; syncToggles(); recompute();}
   $("dName").innerHTML=(p.lg?`<img class="logo" src="${esc(p.lg)}" alt="" onerror="this.remove()">`:"")+esc(p.n)+(p.src==="r"?'<span class="verified">researched</span>':"");
   $("dChips").innerHTML=`<span class="chip click" data-sec="${p.s}"><span class="dot" style="background:${sec.color}"></span>${esc(sec.name)}</span>`+
-    (p.c?`<span class="chip">${esc(p.c)}</span>`:"")+(p.y0?`<span class="chip">Founded ${p.y0}</span>`:"")+(p.h?`<span class="chip">${esc(p.h)} people</span>`:"");
+    ((p.c||p.st)?`<span class="chip">📍 ${esc([p.c,p.st].filter((v,k,a)=>v&&a.indexOf(v)===k).join(", "))}</span>`:"")+(p.y0?`<span class="chip">Founded ${p.y0}</span>`:"")+(p.h?`<span class="chip">${esc(p.h)} people</span>`:"");
   $("dChips").querySelector("[data-sec]").onclick=()=>soloSector(p.s);
   $("dDesc").textContent=p.d||"";
   const RD={pre_seed:"Pre-seed",seed:"Seed",angel:"Angel",grant:"Grant",non_equity_assistance:"Accelerator / incubator support",series_unknown:"Venture round",series_a:"Series A",series_b:"Series B",series_c:"Series C",series_d:"Series D",series_e:"Series E",debt_financing:"Debt",convertible_note:"Convertible note",undisclosed:"Undisclosed round",corporate_round:"Corporate round",private_equity:"Private equity",equity_crowdfunding:"Crowdfunding"};
@@ -363,21 +429,28 @@ function select(i,center){
     row.onclick=()=>select(j,true); box.appendChild(row);}
   $("detail").classList.add("open"); document.body.classList.add("dopen"); $("detail").querySelector(".body").scrollTop=0;
   if(center){
-    const grp=[i,...p.sim.filter(j=>visible[j])]; let a=1e9,b=1e9,c=-1e9,d=-1e9;
-    for(const j of grp){const q=pts[j]; a=Math.min(a,q.x); c=Math.max(c,q.x); b=Math.min(b,q.y); d=Math.max(d,q.y);}
+    const grp=mode==="geo"?[i]:[i,...p.sim.filter(j=>visible[j])]; let a=1e9,b=1e9,c=-1e9,d=-1e9;
+    for(const j of grp){const qx=PX(j),qy=PY(j); a=Math.min(a,qx); c=Math.max(c,qx); b=Math.min(b,qy); d=Math.max(d,qy);}
     const mob=W<=720, L=mob?30:340, R=mob?30:400, T=mob?140:90, B=mob?H*.6:60;
     const aw=Math.max(120,W-L-R), ah=Math.max(120,H-T-B);
-    view.k=Math.max(2.5,Math.min(40,Math.min(aw/Math.max(c-a,1),ah/Math.max(d-b,1))*0.8));
+    view.k=mode==="geo"?Math.max(view.k,7):Math.max(2.5,Math.min(40,Math.min(aw/Math.max(c-a,1),ah/Math.max(d-b,1))*0.8));
     const cx=(a+c)/2, cy=(b+d)/2; view.x=L+aw/2-cx*view.k; view.y=T+ah/2-cy*view.k;
   }
   draw();
+}
+function clickState(si){
+  if(si<0||si===stateSel){stateSel=-1; highlight=null; $("geoNote").textContent=""; recompute(); return;}
+  stateSel=si; const n=india.states[si].n; highlight=new Set(pts.map((p,i)=>p.st===n?i:-1).filter(i=>i>=0)); highlight._state=true;
+  const cs={}; for(const i of highlight){const c=pts[i].c||"Other"; cs[c]=(cs[c]||0)+1;}
+  $("geoNote").textContent=`${n}: ${highlight.size} startups · `+Object.entries(cs).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,k])=>`${c} ${k}`).join(", ")+" · click again to clear";
+  recompute();
 }
 function closeDetail(){ if(selected<0) return; selected=-1; hoverSim=-1; $("detail").classList.remove("open"); document.body.classList.remove("dopen"); draw(); }
 $("dx").onclick=closeDetail;
 
 // ---------- filters ----------
 function recompute(){
-  let n=0; visible=pts.map(p=>{const v=activeSecs.has(p.s)&&activeTiers.has(p.t)&&(!onlyHire||!!p.hi); if(v) n++; return v;});
+  let n=0; visible=pts.map(p=>{const v=activeSecs.has(p.s)&&activeTiers.has(p.t)&&(!onlyHire||!!p.hi)&&(mode!=="geo"||p.gx!=null); if(v) n++; return v;});
   $("counter").textContent=(highlight?`${highlight.size} highlighted · `:"")+`${n.toLocaleString()} of ${pts.length.toLocaleString()} startups shown`;
   if(selected>=0&&!visible[selected]) closeDetail();
   renderSecs(); draw();
@@ -407,6 +480,7 @@ function search(q){
   const box=$("results"); q=q.trim().toLowerCase(); if(!q){box.classList.remove("show");box.innerHTML="";results=[];return;}
   const out=[];
   for(const k in sectors) if(sectors[k].name.toLowerCase().includes(q)) out.push({t:"sec",k,label:sectors[k].name});
+  if(india) for(let si=0;si<india.states.length;si++){const n=india.states[si].n; if(n.toLowerCase().includes(q)&&stCount[n]) out.push({t:"state",si,label:n,sub:stCount[n]+" startups"});}
   const cities={}; for(const p of pts){const c=(p.c||"").toLowerCase(); if(c&&c.includes(q)) cities[p.c]=(cities[p.c]||0)+1;}
   Object.entries(cities).sort((a,b)=>b[1]-a[1]).slice(0,3).forEach(([c,n])=>out.push({t:"city",c,label:c,sub:n+" startups"}));
   const hits=[];
@@ -419,6 +493,7 @@ function search(q){
   results=out.slice(0,16); act=-1;
   box.innerHTML=results.map((r,n)=>{
     if(r.t==="sec") return `<div class="res" data-n="${n}"><span class="tag sec">sector</span><span>${esc(r.label)}</span></div>`;
+    if(r.t==="state") return `<div class="res" data-n="${n}"><span class="tag city">state</span><span>${esc(r.label)}</span><span class="sub">${esc(r.sub)}</span></div>`;
     if(r.t==="city") return `<div class="res" data-n="${n}"><span class="tag city">city</span><span>${esc(r.label)}</span><span class="sub">${esc(r.sub)}</span></div>`;
     const p=pts[r.i]; return `<div class="res" data-n="${n}"><span class="dot" style="background:${sectors[p.s].color}"></span><span>${esc(p.n)}</span><span class="sub">${esc(r.sub||"")}</span></div>`;}).join("")
     || `<div class="res" style="cursor:default;color:var(--muted)">No matches</div>`;
@@ -427,6 +502,7 @@ function search(q){
 }
 function choose(n){const r=results[n]; if(!r) return; $("results").classList.remove("show");
   if(r.t==="sec"){$("q").value=""; soloSector(r.k);}
+  else if(r.t==="state"){$("q").value=r.label; if(mode!=="geo") setMode("geo"); setTimeout(()=>clickState(r.si), mode==="geo"?0:1000);}
   else if(r.t==="city"){$("q").value=r.c; highlight=new Set(pts.map((p,i)=>p.c===r.c?i:-1).filter(i=>i>=0)); closeDetail(); recompute();}
   else{$("q").value=r.label; highlight=null; select(r.i,true); recompute();}
   $("q").blur(); $("side").classList.remove("expanded");
@@ -443,7 +519,13 @@ document.addEventListener("click",e=>{if(!$("searchwrap").contains(e.target)) $(
 // ---------- load ----------
 addEventListener("resize",()=>{resize();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden) resize();});
-fetch("startups.json").then(r=>{if(!r.ok) throw new Error(r.status); return r.json();}).then(d=>{
+Promise.all([fetch("startups.json").then(r=>{if(!r.ok) throw new Error(r.status); return r.json();}), fetch("india.json").then(r=>r.ok?r.json():null).catch(()=>null)]).then(([d,ind])=>{
+  india=ind;
+  if(india){ statePaths=india.states.map(st=>{const p=new Path2D(); for(const r of st.r){p.moveTo(r[0],r[1]); for(let q=2;q<r.length;q+=2) p.lineTo(r[q],r[q+1]); p.closePath();} return {p};});
+    distPaths=india.districts.map(ds=>{const p=new Path2D(); for(const r of ds.r){p.moveTo(r[0],r[1]); for(let q=2;q<r.length;q+=2) p.lineTo(r[q],r[q+1]); p.closePath();} return p;}); }
+  for(const p of d.points){ if(p.st) stCount[p.st]=(stCount[p.st]||0)+1; }
+  const cc={}; for(const p of d.points){ if(p.gx==null||p.gp!=="city"||!p.c) continue; const o=cc[p.c]||(cc[p.c]={n:p.c,c:0,x:0,y:0}); o.c++; o.x+=p.gx; o.y+=p.gy; }
+  cityCount=Object.values(cc).map(o=>({n:o.n,c:o.c,x:o.x/o.c,y:o.y/o.c})).sort((a,b)=>b.c-a.c);
   pts=d.points; labels=d.labels; sectors=d.meta.sectors; activeSecs=new Set(Object.keys(sectors));
   resize(); fit(); recompute(); $("loading").style.display="none";
   const T=d.meta.tiers||{}; $("sub").textContent=`${pts.length.toLocaleString()} Indian climate startups, ${(T.f||0).toLocaleString()} of them funded or VC-backed. Companies that do similar things sit close together. Click any dot to see its look-alikes.`;
@@ -451,7 +533,8 @@ fetch("startups.json").then(r=>{if(!r.ok) throw new Error(r.status); return r.js
   const D=d.meta.dropped||{}, dn=Object.values(D).reduce((a,b)=>a+b,0);
   $("aboutCount").textContent=`${pts.length.toLocaleString()} startups across 16 climate sub-sectors: ${(T.f||0)} funded or VC-backed, ${(T.b||0)} incubated or recognised, ${(T.o||0)} other operating startups.`;
   $("aboutDrop").textContent=`${dn.toLocaleString()} companies removed: `+Object.entries(D).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} (${v})`).join(", ")+".";
-  const h=decodeURIComponent(location.hash.slice(1)); if(h){const i=pts.findIndex(p=>p.n.toLowerCase()===h.toLowerCase()); if(i>=0) select(i,true);}
+  const h=decodeURIComponent(location.hash.slice(1)); if(h==="india"&&india){ setMode("geo"); }
+  else if(h){const i=pts.findIndex(p=>p.n.toLowerCase()===h.toLowerCase()); if(i>=0) select(i,true);}
 }).catch(err=>{$("loading").innerHTML="Could not load the data ("+esc(err.message)+").";});
 })();
 </script>
