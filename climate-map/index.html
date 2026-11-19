@@ -48,7 +48,11 @@ a{color:var(--accent2)}
 #filters{padding:10px 12px 12px;overflow:auto;min-height:0}
 #filters .head{display:flex;justify-content:space-between;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:2px 2px 8px}
 #filters .head button{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:11px;padding:0;text-transform:none;letter-spacing:0}
-.sec-row{display:flex;align-items:center;gap:9px;padding:5px 6px;border-radius:7px;cursor:pointer;font-size:12.8px;user-select:none}
+#filters{display:flex;flex-direction:column}
+#secBlock,#cityBlock{order:1} body.geo #cityBlock{order:0;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+#filters::-webkit-scrollbar{width:6px} #filters::-webkit-scrollbar-thumb{background:#24303a;border-radius:3px}
+#hint{transition:opacity .6s} #hint.gone{opacity:0}
+.sec-row{display:flex;align-items:center;gap:9px;padding:3.5px 6px;border-radius:7px;cursor:pointer;font-size:12.8px;user-select:none}
 .sec-row:hover{background:#121a20}
 .sec-row .sw{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
 .sec-row .ct{margin-left:auto;color:var(--muted);font-size:11.5px}
@@ -102,6 +106,18 @@ a{color:var(--accent2)}
 #modeSw{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:22;display:flex;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:3px;gap:2px;backdrop-filter:blur(8px)}
 #modeSw button{background:none;border:none;color:var(--muted);padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12.8px;font-weight:500;white-space:nowrap}
 #modeSw button.on{background:linear-gradient(90deg,#16392e,#173640);color:var(--text)}
+#legend{position:fixed;right:64px;bottom:62px;z-index:15;background:rgba(10,14,18,.78);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:11.2px;color:var(--muted);line-height:1.7}
+#legend i{display:inline-block;border-radius:50%;background:#8fb;vertical-align:middle;margin-right:6px}
+body.dopen #legend{display:none}
+#empty{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;color:var(--muted);font-size:14px;display:none;text-align:center}
+.sec-row .only{display:none;margin-left:6px;font-size:10.5px;color:var(--accent2);border:1px solid var(--line2);border-radius:4px;padding:0 5px}
+.sec-row:hover .only{display:inline-block}
+.sec-row:hover .ct{display:none}
+#tip .tt{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+#tip .tt em{font-style:normal;font-size:10.5px;padding:1px 6px;border-radius:4px;background:#17303a;color:var(--accent2)}
+#tip .tt em.f{background:#173a2c;color:var(--accent)} #tip .tt em.x{background:#3a1717;color:#ffb4b4}
+.links button{font-size:12px;border:1px solid var(--line2);border-radius:7px;padding:6px 10px;color:var(--text);background:#0d1318;cursor:pointer}
+.links button:hover{border-color:var(--accent2)}
 #geoNote{position:fixed;left:50%;top:58px;transform:translateX(-50%);z-index:21;font-size:11.5px;color:var(--muted);display:none;text-shadow:0 1px 3px #000}
 body.geo #geoNote{display:block}
 .city-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12.5px}
@@ -129,7 +145,10 @@ body.dopen #zoom{right:390px}
   #hint,#foot{display:none}
   #zoom{bottom:16px;right:12px}
   #modeSw{top:auto;bottom:16px}
-  #geoNote{display:none!important}
+  body.dopen #zoom{right:12px;display:none}
+  #geoNote{top:auto;bottom:62px;max-width:92vw;white-space:normal;text-align:center;background:rgba(10,14,18,.85);border:1px solid var(--line);border-radius:14px;padding:6px 12px}
+  body:not(.geo) #geoNote{display:none}
+  #legend{display:none}
 }
 </style>
 </head>
@@ -150,7 +169,7 @@ body.dopen #zoom{right:390px}
     </div>
   </div>
   <div class="card" id="filters">
-    <div class="head"><span>Sectors</span><span><button id="allOn">All</button> · <button id="allOff">None</button></span></div>
+    <div id="secBlock"><div class="head"><span>Sectors</span><span><button id="allOn">All</button> · <button id="allOff">None</button></span></div>
     <div id="secList"></div>
     <div class="toggles">
       <span class="pill on tier" data-t="f" title="Funding round, grant or accelerator support on record, or backed by a known climate investor">● Funded / VC-backed <b class="tc" data-c="f"></b></span>
@@ -159,8 +178,9 @@ body.dopen #zoom{right:390px}
       <span class="pill" id="tHire">Hiring signals</span>
       <span class="pill on" id="tLab">Labels</span>
     </div>
-    <div class="head" style="margin-top:14px"><span>Top cities</span><span><button id="allCities">Show all</button></span></div>
-    <div id="cityList"></div>
+    </div>
+    <div id="cityBlock"><div class="head" style="margin-top:12px"><span>Top cities</span><span><button id="allCities">Show all</button></span></div>
+    <div id="cityList"></div></div>
   </div>
   <div id="counter"></div>
 </div>
@@ -202,6 +222,8 @@ body.dopen #zoom{right:390px}
 </div></div>
 <div id="modeSw"><button data-m="sim" class="on">Similarity map</button><button data-m="geo">India map</button></div>
 <div id="geoNote"></div>
+<div id="empty">No startups match these filters.<br><a href="#" id="resetF">Reset filters</a></div>
+<div id="legend"><i style="width:6px;height:6px"></i>Small team &nbsp; <i style="width:11px;height:11px"></i>Large team or funded<br><i style="width:9px;height:9px;background:none;border:1.5px solid #fff"></i>Researched &nbsp; <i style="width:9px;height:9px;background:none;border:1.5px solid #ff7878"></i>Insolvent</div>
 <div id="tip"></div>
 <div id="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button></div>
 <div id="hint">Scroll to zoom · Drag to pan · Click a dot for details and look-alikes</div>
@@ -218,6 +240,9 @@ let mode="sim", T=0, india=null, statePaths=[], distPaths=[], hoverState=-1, sta
 const PX=i=>{const p=pts[i]; return p.gx==null?p.x:p.x+(p.gx-p.x)*T;};
 const PY=i=>{const p=pts[i]; return p.gy==null?p.y:p.y+(p.gy-p.y)*T;};
 const $=id=>document.getElementById(id);
+const NOHOVER=window.matchMedia&&matchMedia("(hover: none)").matches;
+let hintT=setTimeout(()=>$("hint").classList.add("gone"),9000);
+const hideHint=()=>{$("hint").classList.add("gone");};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 let lastW=0;
@@ -276,7 +301,7 @@ function draw(){
     const p=pts[i], X=sx(PX(i)), Y=sy(PY(i)); if(X<-10||X>W+10||Y<-10||Y>H+10) continue;
     const inHL=!highlight||highlight.has(i);
     const col=sectors[p.s].color, r=r0*p.sz;
-    const fade=p.gx==null?1-T:1; if(fade<=0.02) continue;
+    const fade=(p.gx==null?1-T:1)*(p.sx?0.55:1); if(fade<=0.02) continue;
     ctx.globalAlpha= fade*(!inHL ? 0.07 : (selected>=0 ? 0.28 : 0.92));
     ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X,Y,r,0,6.2832); ctx.fill();
     if(p.sx && inHL){ctx.strokeStyle="rgba(255,120,120,.9)";ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(X,Y,r+2,0,6.2832);ctx.stroke();}
@@ -336,11 +361,11 @@ function setMode(m){
   if(m===mode&&!anim) return; mode=m; document.body.classList.toggle("geo",m==="geo");
   document.querySelectorAll("#modeSw button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
   try{history.replaceState(null,"",m==="geo"?"#india":location.pathname);}catch(e){}
-  closeDetail(); stateSel=-1; if(highlight&&highlight._state){highlight=null;}
+  closeDetail(); stateSel=-1; highlight=null; $("geoNote").textContent="";
   const t0=T, t1=m==="geo"?1:0, v0={...view}, v1=fitView(m), start=performance.now(), dur=950;
   recompute();
-  anim=true;
-  const step=now=>{ let u=Math.min(1,(now-start)/dur); const e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+  const tok=anim={}; 
+  const step=now=>{ if(anim!==tok) return; let u=Math.min(1,(now-start)/dur); const e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
     T=t0+(t1-t0)*e; view.k=v0.k+(v1.k-v0.k)*e; view.x=v0.x+(v1.x-v0.x)*e; view.y=v0.y+(v1.y-v0.y)*e; draw();
     if(u<1) requestAnimationFrame(step); else {anim=null; recompute();} };
   requestAnimationFrame(step);
@@ -386,16 +411,18 @@ addEventListener("mouseup",e=>{cv.classList.remove("drag"); if(drag&&!moved&&e.t
 addEventListener("mousemove",e=>{
   if(drag){const dx=e.clientX-lx,dy=e.clientY-ly; if(Math.abs(dx)+Math.abs(dy)>3) moved=true; view.x+=dx; view.y+=dy; lx=e.clientX; ly=e.clientY; draw(); return;}
   if(e.target!==cv){if(hoverPt>=0){hoverPt=-1;$("tip").style.display="none";draw();} return;}
+  if(NOHOVER) return;
   const i=pick(e.clientX,e.clientY), tip=$("tip");
   if(i!==hoverPt){hoverPt=i; draw();}
-  if(i>=0){const p=pts[i]; tip.innerHTML=`<b>${esc(p.n)}</b><span>${esc(sectors[p.s].name)} · ${esc(p.c||"India")}</span>`;
+  if(i>=0){const p=pts[i]; const tl={f:"Funded",b:"Incubated",o:""}[p.t];
+    tip.innerHTML=`<b>${esc(p.n)}</b><span>${esc(sectors[p.s].name)} · ${esc(p.c||p.st||"India")}</span><div class="tt">${tl?`<em class="${p.t}">${tl}</em>`:""}${p.y0?`<em>Founded ${p.y0}</em>`:""}${p.h?`<em>${esc(p.h)} people</em>`:""}${p.sx?`<em class="x">Insolvent</em>`:""}</div>`;
     tip.style.display="block"; tip.style.left=Math.min(e.clientX+14,W-290)+"px"; tip.style.top=(e.clientY+14)+"px"; cv.style.cursor="pointer";}
   else{ const si=stateAt(e.clientX,e.clientY); if(si!==hoverState){hoverState=si; draw();}
     if(si>=0){const n=india.states[si].n; tip.innerHTML=`<b>${esc(n)}</b><span>${(stCount[n]||0).toLocaleString()} startups · click to highlight</span>`; tip.style.display="block"; tip.style.left=Math.min(e.clientX+14,W-290)+"px"; tip.style.top=(e.clientY+14)+"px"; cv.style.cursor="pointer";}
     else {tip.style.display="none"; cv.style.cursor="";} }
 });
 function zoomAt(f,mx,my){const bx=wx(mx),by=wy(my); view.k=Math.max(.2,Math.min(view.k*f,60)); view.x=mx-bx*view.k; view.y=my-by*view.k; draw();}
-cv.addEventListener("wheel",e=>{e.preventDefault(); zoomAt(Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY);},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault(); hideHint(); zoomAt(Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY);},{passive:false});
 $("zin").onclick=()=>zoomAt(1.5,W/2,H/2); $("zout").onclick=()=>zoomAt(1/1.5,W/2,H/2); $("zfit").onclick=()=>{fit();draw();};
 // touch
 let tm=null,t0x=0,t0y=0,tmov=false,pd=0;
@@ -432,9 +459,13 @@ function select(i,center){
   let links=""; if(p.w) links+=`<a href="https://${esc(p.w)}" target="_blank" rel="noopener">Website ↗</a>`;
   if(p.li) links+=`<a href="${esc(p.li)}" target="_blank" rel="noopener">LinkedIn ↗</a>`;
   if(p.su) links+=`<a href="${esc(p.su)}" target="_blank" rel="noopener">Source ↗</a>`;
+  links+=`<button id="shareBtn">Copy link</button>`;
   links+=`<a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(p.n+" founder")}" target="_blank" rel="noopener">Find founders ↗</a>`;
   links+=`<a href="https://www.google.com/search?q=${encodeURIComponent(p.n+" "+(p.w||"")+" funding")}" target="_blank" rel="noopener">News ↗</a>`;
   $("dLinks").innerHTML=links;
+  const link=location.origin+location.pathname+"#"+(mode==="geo"?"india:":"")+encodeURIComponent(p.n);
+  try{history.replaceState(null,"","#"+(mode==="geo"?"india:":"")+encodeURIComponent(p.n));}catch(e){}
+  $("shareBtn").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(()=>{$("shareBtn").textContent="Copied";},()=>{prompt("Copy this link",link);}); };
   const box=$("dSim"); box.innerHTML="";
   for(const j of p.sim){const n=pts[j]; const row=document.createElement("div"); row.className="sim";
     row.innerHTML=`<span class="dot" style="background:${sectors[n.s].color}"></span><span>${esc(n.n)}</span><span class="c">${esc(n.c||"")}</span>`;
@@ -455,26 +486,28 @@ function clickState(si){
   if(si<0||si===stateSel){stateSel=-1; highlight=null; $("geoNote").textContent=""; recompute(); return;}
   if(highlight&&!highlight._state){highlight=null;}
   stateSel=si; const n=india.states[si].n; highlight=new Set(pts.map((p,i)=>p.st===n?i:-1).filter(i=>i>=0)); highlight._state=true;
-  const cs={}; for(const i of highlight){const c=pts[i].c||"Other"; cs[c]=(cs[c]||0)+1;}
+  const cs={}; for(const i of highlight){const c=pts[i].c||"location unspecified"; cs[c]=(cs[c]||0)+1;}
   $("geoNote").textContent=`${n}: ${highlight.size} startups · `+Object.entries(cs).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,k])=>`${c} ${k}`).join(", ")+" · click again to clear";
   recompute();
 }
-function closeDetail(){ if(selected<0) return; selected=-1; hoverSim=-1; $("detail").classList.remove("open"); document.body.classList.remove("dopen"); draw(); }
+function closeDetail(){ if(selected<0) return; try{history.replaceState(null,"",mode==="geo"?"#india":location.pathname);}catch(e){} selected=-1; hoverSim=-1; $("detail").classList.remove("open"); document.body.classList.remove("dopen"); draw(); }
 $("dx").onclick=closeDetail;
 
 // ---------- filters ----------
 function recompute(){
   let n=0; visible=pts.map(p=>{const v=activeSecs.has(p.s)&&activeTiers.has(p.t)&&(!onlyHire||!!p.hi)&&(mode!=="geo"||p.gx!=null); if(v) n++; return v;});
-  $("counter").textContent=(highlight?`${highlight.size} highlighted · `:"")+`${n.toLocaleString()} of ${pts.length.toLocaleString()} startups shown`;
+  const noGeo=mode==="geo"?pts.filter(p=>p.gx==null).length:0;
+  $("counter").textContent=(highlight?`${highlight.size} highlighted · `:"")+`${n.toLocaleString()} of ${pts.length.toLocaleString()} startups shown`+(noGeo?` · ${noGeo} without a known location`:"");
+  $("empty").style.display=n===0&&pts.length?"block":"none";
   if(selected>=0&&!visible[selected]) closeDetail();
   renderSecs(); draw();
 }
 function renderSecs(){
   const counts={}; for(const p of pts) counts[p.s]=(counts[p.s]||0)+1;
   const keys=Object.keys(sectors).sort((a,b)=>counts[b]-counts[a]);
-  $("secList").innerHTML=keys.map(k=>`<div class="sec-row ${activeSecs.has(k)?"":"off"}" data-k="${k}"><span class="sw" style="background:${sectors[k].color};color:${sectors[k].color}"></span><span>${esc(sectors[k].name)}</span><span class="ct">${counts[k]||0}</span></div>`).join("");
+  $("secList").innerHTML=keys.map(k=>`<div class="sec-row ${activeSecs.has(k)?"":"off"}" data-k="${k}"><span class="sw" style="background:${sectors[k].color};color:${sectors[k].color}"></span><span>${esc(sectors[k].name)}</span><span class="ct">${counts[k]||0}</span><span class="only" data-only="${k}">only</span></div>`).join("");
   $("secList").querySelectorAll(".sec-row").forEach(el=>{
-    el.onclick=e=>{const k=el.dataset.k; if(e.shiftKey||e.metaKey){soloSector(k);return;} activeSecs.has(k)?activeSecs.delete(k):activeSecs.add(k); recompute();};
+    el.onclick=e=>{const k=el.dataset.k; if(e.target.dataset.only||e.shiftKey||e.metaKey){soloSector(k);return;} activeSecs.has(k)?activeSecs.delete(k):activeSecs.add(k); recompute();};
     el.ondblclick=()=>soloSector(el.dataset.k);});
 }
 let showAllCities=false;
@@ -501,6 +534,7 @@ $("aboutLink").onclick=e=>{e.preventDefault();$("about").classList.add("show");}
 $("about").onclick=e=>{if(e.target.id==="about")$("about").classList.remove("show");};
 $("tHire").onclick=()=>{onlyHire=!onlyHire; syncToggles(); recompute();};
 $("tLab").onclick=()=>{showLabels=!showLabels; $("tLab").classList.toggle("on",showLabels); draw();};
+$("resetF").onclick=e=>{e.preventDefault(); activeSecs=new Set(Object.keys(sectors)); activeTiers=new Set(["f","b","o"]); onlyHire=false; highlight=null; syncToggles(); recompute();};
 $("allCities").onclick=()=>{showAllCities=!showAllCities; renderCities();};
 $("menuBtn").onclick=()=>$("side").classList.toggle("expanded");
 
@@ -564,7 +598,8 @@ Promise.all([fetch("startups.json").then(r=>{if(!r.ok) throw new Error(r.status)
   const D=d.meta.dropped||{}, dn=Object.values(D).reduce((a,b)=>a+b,0);
   $("aboutCount").textContent=`${pts.length.toLocaleString()} startups across 16 climate sub-sectors: ${(T.f||0)} funded or VC-backed, ${(T.b||0)} incubated or recognised, ${(T.o||0)} other operating startups.`;
   $("aboutDrop").textContent=`${dn.toLocaleString()} companies removed: `+Object.entries(D).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} (${v})`).join(", ")+".";
-  const h=decodeURIComponent(location.hash.slice(1)); if(h==="india"&&india){ setMode("geo"); }
+  let h=decodeURIComponent(location.hash.slice(1));
+  if(h.startsWith("india")&&india){ setMode("geo"); h=h.slice(6); if(h){const i=pts.findIndex(p=>p.n.toLowerCase()===h.toLowerCase()); if(i>=0) setTimeout(()=>select(i,true),1050);} }
   else if(h){const i=pts.findIndex(p=>p.n.toLowerCase()===h.toLowerCase()); if(i>=0) select(i,true);}
 }).catch(err=>{$("loading").innerHTML="Could not load the data ("+esc(err.message)+").";});
 })();

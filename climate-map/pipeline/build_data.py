@@ -419,6 +419,8 @@ for p in pts:
     if lon is not None:
         p["gx"], p["gy"] = geo.proj(lon, lat)
     p["gp"] = p.pop("prec") or ""
+    if p["gp"] == "state" or p["c"] in ("India", "Bangalore Rural"):
+        p["c"] = "" if p["c"] != "Bangalore Rural" else "Bengaluru"
 json.dump(geo.india_geometry(), open(OUT.rsplit("/", 1)[0] + "/india.json", "w"), separators=(",", ":"))
 meta = {"sectors": {k: {"name": v[0], "color": v[1]} for k, v in SECTORS.items()},
         "count": len(pts), "built": "2026-11-20", "tiers": dict(Counter(p["t"] for p in pts)), "geo": dict(geo_stats), "dropped": json.load(open(f"{ROOT}/dropped_counts.json"))}
