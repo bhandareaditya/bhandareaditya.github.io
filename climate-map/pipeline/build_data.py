@@ -206,6 +206,26 @@ backers = defaultdict(set)
 for p_ in port:
     backers[norm_domain(p_["domain"]) or norm_name(p_["name"])].update(x.strip() for x in p_["backer"].split(","))
     backers[norm_name(p_["name"])].update(x.strip() for x in p_["backer"].split(","))
+FUNDED_EV = re.compile(r"\$|₹|seed|series|pre-?seed|raised|angel|grant", re.I)
+r2cities = {}
+try:
+    for x in json.load(open(f"{ROOT}/agent_cities.json")):
+        r2cities[norm_name(x["name"])] = x
+except FileNotFoundError:
+    pass
+extra_updates = []
+seed_names0 = {norm_name(s_["name"]) for s_ in seed}
+for r2 in csv.DictReader(open(f"{ROOT}/research2.tsv"), delimiter="\t"):
+    k = norm_name(r2["name"])
+    if k in seed_names0:
+        extra_updates.append({"name": r2["name"], "status": "active", "update": r2["evidence"], "source": r2["source"]})
+        continue
+    ag = r2cities.get(k, {})
+    city = r2["city"] or ag.get("city", "")
+    seed.append({"name": r2["name"], "website": r2["website"] or ag.get("website", ""), "sector": r2["sector"], "hq": city,
+                 "state": r2["state"] or ag.get("state", ""), "founded": "", "founders": "", "funding": r2["evidence"] if FUNDED_EV.search(r2["evidence"]) else "",
+                 "hiring": "", "desc": r2["desc"], "evidence": r2["evidence"], "source": r2["source"],
+                 "tier": "f" if FUNDED_EV.search(r2["evidence"]) else "b"})
 seed_names = {norm_name(s_["name"]) for s_ in seed}
 seed_domains = {norm_domain(s_["website"]) for s_ in seed if s_["website"]}
 for p_ in port:
@@ -227,10 +247,15 @@ for s_ in seed:
     bk = sorted(backers.get(dom, set()) | backers.get(norm_name(s_["name"]), set()))
     rec = {
         "name": s_["name"], "domain": dom, "desc_full": s_["desc"], "year": int(s_["founded"]) if s_["founded"].isdigit() else None,
-        "headcount": "", "linkedin": "", "city": s_["hq"] or "India", "city_raw": s_["hq"], "state_raw": "", "sector": s_["sector"], "src": "research",
-        "founders": s_["founders"], "funding": s_["funding"], "hiring": s_["hiring"], "logo": "", "tier": "f",
+        "headcount": "", "linkedin": "", "city": s_["hq"] or "India", "city_raw": s_["hq"], "state_raw": s_.get("state", ""), "sector": s_["sector"], "src": "research",
+        "founders": s_["founders"], "funding": s_["funding"], "hiring": s_["hiring"], "logo": "", "tier": s_.get("tier", "f"),
+        "ev": s_.get("evidence", ""), "su": s_.get("source", ""),
         "backers": ", ".join(bk), "round": "", "investors": "",
     }
+    ag = r2cities.get(norm_name(s_["name"]))
+    if ag and (not s_["hq"] or s_["hq"] == "India") and ag.get("city"):
+        rec["city"] = ag["city"]; rec["city_raw"] = ag["city"]; rec["state_raw"] = ag.get("state", "")
+        rec["domain"] = rec["domain"] or norm_domain(ag.get("website", ""))
     if hit:
         matched += 1
         hit["_merged"] = True
@@ -240,6 +265,8 @@ for s_ in seed:
         rec["year"] = rec["year"] or hit["year"]
         if rec["city"] in ("", "India"):
             rec["city"] = hit["city"]; rec["city_raw"] = hit["city_raw"]; rec["state_raw"] = hit["state_raw"]
+        if hit.get("funded"):
+            rec["tier"] = "f"
         rec["embed_extra"] = hit["desc_full"]
         rec["round"] = hit.get("round", ""); rec["investors"] = hit.get("investors", "")
         rec["src"] = "research+crustdata"
@@ -263,6 +290,23 @@ for r in final:
     dedup.append(r)
 final = dedup
 print("final", len(final), Counter(r["sector"] for r in final))
+
+# ---------- status / funding updates ----------
+upd = list(csv.DictReader(open(f"{ROOT}/updates.tsv"), delimiter="\t")) + extra_updates
+byname = defaultdict(list)
+for r in final:
+    byname[norm_name(r["name"])].append(r)
+applied = 0
+for u in upd:
+    for r in byname.get(norm_name(u["name"]), []):
+        applied += 1
+        r["up"] = (r.get("up", "") + " " + u["update"]).strip() if u["update"] not in r.get("up", "") else r.get("up", "")
+        r["su"] = r.get("su") or u["source"]
+        if u["status"] != "active":
+            r["sx"] = u["status"]
+        if FUNDED_EV.search(u["update"]) or "cohort" in u["update"].lower() or "incubator" in u["update"].lower():
+            r["tier"] = "f" if FUNDED_EV.search(u["update"]) else (r.get("tier") if r.get("tier") == "f" else "b")
+print("updates applied", applied)
 
 # ---------- embed ----------
 custom_stop = set(ENGLISH_STOP_WORDS) | {
@@ -363,6 +407,7 @@ for i, r in enumerate(final):
         "bk": r.get("backers", ""),
         "rd": r.get("round", ""),
         "iv": r.get("investors", ""),
+        "ev": r.get("ev", ""), "su": r.get("su", ""), "up": r.get("up", ""), "sx": r.get("sx", ""),
         "sz": round(HEAD_MULT.get(r["headcount"], 1.0) * {"f": 1.3, "b": 1.05, "o": 0.85}[r.get("tier", "o")], 2),
         "sim": [int(j) for j in similar[i]],
         "lon": r.get("lon"), "lat": r.get("lat"), "prec": r.get("prec"),

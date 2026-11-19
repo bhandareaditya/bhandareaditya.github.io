@@ -104,6 +104,12 @@ a{color:var(--accent2)}
 #modeSw button.on{background:linear-gradient(90deg,#16392e,#173640);color:var(--text)}
 #geoNote{position:fixed;left:50%;top:58px;transform:translateX(-50%);z-index:21;font-size:11.5px;color:var(--muted);display:none;text-shadow:0 1px 3px #000}
 body.geo #geoNote{display:block}
+.city-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.city-row:hover{background:#121a20}
+.city-row .bar{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:.7}
+.city-row .ct{margin-left:auto;color:var(--muted);font-size:11.5px}
+.badge-x{font-size:10.5px;color:#ffb4b4;border:1px solid #7a2a2a;background:#2a1212;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.upd{background:#141a2a;border:1px solid #2b3a63;color:#d6defa;border-radius:8px;padding:9px 11px;font-size:12.5px;line-height:1.45;margin-bottom:12px}
 #menuBtn{display:none}
 body.dopen #foot,body.dopen #hint{display:none}
 body.dopen #zoom{right:390px}
@@ -153,6 +159,8 @@ body.dopen #zoom{right:390px}
       <span class="pill" id="tHire">Hiring signals</span>
       <span class="pill on" id="tLab">Labels</span>
     </div>
+    <div class="head" style="margin-top:14px"><span>Top cities</span><span><button id="allCities">Show all</button></span></div>
+    <div id="cityList"></div>
   </div>
   <div id="counter"></div>
 </div>
@@ -271,6 +279,7 @@ function draw(){
     const fade=p.gx==null?1-T:1; if(fade<=0.02) continue;
     ctx.globalAlpha= fade*(!inHL ? 0.07 : (selected>=0 ? 0.28 : 0.92));
     ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X,Y,r,0,6.2832); ctx.fill();
+    if(p.sx && inHL){ctx.strokeStyle="rgba(255,120,120,.9)";ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(X,Y,r+2,0,6.2832);ctx.stroke();}
     if(p.src==="r" && inHL && view.k>1.3){ctx.globalAlpha=Math.min(1,ctx.globalAlpha+.1);ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=.8;ctx.stroke();}
   }
   ctx.globalAlpha=1;
@@ -312,8 +321,8 @@ function drawGeoLabels(){
   const tryLab=(t,X,Y,fs,col)=>{ctx.font=`600 ${fs}px Inter,system-ui,sans-serif`; const w=ctx.measureText(t).width+8,h=fs+6;
     if(X<-60||X>W+60||Y<-20||Y>H+20) return; for(const b of placed){if(Math.abs(b.x-X)<(b.w+w)/2&&Math.abs(b.y-Y)<(b.h+h)/2) return;}
     placed.push({x:X,y:Y,w,h}); ctx.globalAlpha=fadeA; label(t,X,Y,fs,col);};
-  const cityN=view.k<1.4?8:view.k<3?22:60;
-  for(const c of cityCount.slice(0,cityN)) tryLab(`${c.n} · ${c.c}`,sx(c.x),sy(c.y)-14,Math.min(14,10.5+Math.sqrt(c.c)/4),"rgba(255,255,255,.95)");
+  const cityN=view.k<1.4?14:view.k<3?40:400;
+  for(const c of cityCount.slice(0,cityN)) tryLab(c.c>1?`${c.n} · ${c.c}`:c.n,sx(c.x),sy(c.y)-14,Math.min(14,10+Math.sqrt(c.c)/4),c.c>=10?"rgba(255,255,255,.95)":"rgba(225,235,240,.8)");
   if(view.k<3) for(const st of india.states){const n=stCount[st.n]||0; if(!n) continue; tryLab(`${st.n} ${n}`,sx(st.cx),sy(st.cy),10.5,"rgba(170,195,210,.75)");}
   ctx.globalAlpha=1;
 }
@@ -405,7 +414,7 @@ addEventListener("keydown",e=>{if(e.key==="Escape") closeDetail(); if((e.key==="
 function select(i,center){
   selected=i; hoverSim=-1; const p=pts[i], sec=sectors[p.s];
   if(!visible[i]){activeSecs.add(p.s); activeTiers.add(p.t); onlyHire=false; syncToggles(); recompute();}
-  $("dName").innerHTML=(p.lg?`<img class="logo" src="${esc(p.lg)}" alt="" onerror="this.remove()">`:"")+esc(p.n)+(p.src==="r"?'<span class="verified">researched</span>':"");
+  $("dName").innerHTML=(p.lg?`<img class="logo" src="${esc(p.lg)}" alt="" onerror="this.remove()">`:"")+esc(p.n)+(p.src==="r"?'<span class="verified">researched</span>':"")+(p.sx?`<span class="badge-x">${esc(p.sx==="insolvent"?"Insolvent":p.sx)}</span>`:"");
   $("dChips").innerHTML=`<span class="chip click" data-sec="${p.s}"><span class="dot" style="background:${sec.color}"></span>${esc(sec.name)}</span>`+
     ((p.c||p.st)?`<span class="chip">📍 ${esc([p.c,p.st].filter((v,k,a)=>v&&a.indexOf(v)===k).join(", "))}</span>`:"")+(p.y0?`<span class="chip">Founded ${p.y0}</span>`:"")+(p.h?`<span class="chip">${esc(p.h)} people</span>`:"");
   $("dChips").querySelector("[data-sec]").onclick=()=>soloSector(p.s);
@@ -414,11 +423,15 @@ function select(i,center){
   let fb=""; if(p.t==="f"){ const bits=[]; if(p.rd) bits.push("Latest: "+(RD[p.rd]||p.rd)); if(p.bk) bits.push("Backed by "+p.bk); if(p.iv) bits.push("Investors include "+p.iv);
       fb=`<div class="fund"><b>Funded / VC-backed.</b> ${esc(bits.join(". ")||"Funding round, grant or accelerator support on record.")}</div>`; }
     else if(p.t==="b") fb=`<div class="fund" style="background:#13202a;border-color:#24475a;color:#cde6f2"><b>Incubated / recognised.</b> Profile mentions incubation, an accelerator, DPIIT recognition, a grant or an award.</div>`;
-  $("dHire").innerHTML=fb+(p.hi?`<div class="hire"><b>Hiring signal:</b> ${esc(p.hi)}</div>`:"");
+  if(p.t==="b"&&p.ev) fb=`<div class="fund" style="background:#13202a;border-color:#24475a;color:#cde6f2"><b>Incubated / recognised.</b> ${esc(p.ev)}</div>`;
+  if(p.t==="f"&&p.ev&&!p.fu) fb=`<div class="fund"><b>Funded / VC-backed.</b> ${esc(p.ev)}</div>`;
+  const upd=p.up?`<div class="upd"><b>${p.sx?"Status":"Latest"}:</b> ${esc(p.up)}</div>`:"";
+  $("dHire").innerHTML=upd+fb+(p.hi?`<div class="hire"><b>Hiring signal:</b> ${esc(p.hi)}</div>`:"");
   let kv=""; if(p.f) kv+=`<div class="k">Founders</div><div>${esc(p.f)}</div>`; if(p.fu) kv+=`<div class="k">Funding</div><div>${esc(p.fu)}</div>`;
   $("dKv").innerHTML=kv; $("dKv").style.display=kv?"grid":"none";
   let links=""; if(p.w) links+=`<a href="https://${esc(p.w)}" target="_blank" rel="noopener">Website ↗</a>`;
   if(p.li) links+=`<a href="${esc(p.li)}" target="_blank" rel="noopener">LinkedIn ↗</a>`;
+  if(p.su) links+=`<a href="${esc(p.su)}" target="_blank" rel="noopener">Source ↗</a>`;
   links+=`<a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(p.n+" founder")}" target="_blank" rel="noopener">Find founders ↗</a>`;
   links+=`<a href="https://www.google.com/search?q=${encodeURIComponent(p.n+" "+(p.w||"")+" funding")}" target="_blank" rel="noopener">News ↗</a>`;
   $("dLinks").innerHTML=links;
@@ -440,6 +453,7 @@ function select(i,center){
 }
 function clickState(si){
   if(si<0||si===stateSel){stateSel=-1; highlight=null; $("geoNote").textContent=""; recompute(); return;}
+  if(highlight&&!highlight._state){highlight=null;}
   stateSel=si; const n=india.states[si].n; highlight=new Set(pts.map((p,i)=>p.st===n?i:-1).filter(i=>i>=0)); highlight._state=true;
   const cs={}; for(const i of highlight){const c=pts[i].c||"Other"; cs[c]=(cs[c]||0)+1;}
   $("geoNote").textContent=`${n}: ${highlight.size} startups · `+Object.entries(cs).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,k])=>`${c} ${k}`).join(", ")+" · click again to clear";
@@ -463,6 +477,21 @@ function renderSecs(){
     el.onclick=e=>{const k=el.dataset.k; if(e.shiftKey||e.metaKey){soloSector(k);return;} activeSecs.has(k)?activeSecs.delete(k):activeSecs.add(k); recompute();};
     el.ondblclick=()=>soloSector(el.dataset.k);});
 }
+let showAllCities=false;
+function renderCities(){
+  const list=showAllCities?cityCount:cityCount.slice(0,10), mx=cityCount.length?cityCount[0].c:1;
+  $("cityList").innerHTML=list.map((c,n)=>`<div class="city-row" data-c="${esc(c.n)}"><span>${esc(c.n)}</span><span class="bar" style="width:${Math.max(4,60*c.c/mx)}px"></span><span class="ct">${c.c}</span></div>`).join("");
+  $("cityList").querySelectorAll(".city-row").forEach(el=>el.onclick=()=>focusCity(el.dataset.c));
+  $("allCities").textContent=showAllCities?"Top 10":`Show all ${cityCount.length}`;
+}
+function focusCity(name){
+  const c=cityCount.find(x=>x.n===name); if(!c) return;
+  const go=()=>{ highlight=new Set(pts.map((p,i)=>p.c===name&&p.gx!=null?i:-1).filter(i=>i>=0)); stateSel=-1; closeDetail();
+    view.k=Math.max(view.k,c.c>60?9:14); const off=W>720?-30:0; view.x=W/2+off-c.x*view.k; view.y=H/2-c.y*view.k;
+    $("geoNote").textContent=`${name}: ${highlight.size} startups · click the map to clear`; recompute(); };
+  if(mode!=="geo"){ setMode("geo"); setTimeout(go,1000);} else go();
+  $("side").classList.remove("expanded");
+}
 function soloSector(k){activeSecs=new Set([k]); highlight=null; recompute();}
 $("allOn").onclick=()=>{activeSecs=new Set(Object.keys(sectors)); recompute();};
 $("allOff").onclick=()=>{activeSecs=new Set(); recompute();};
@@ -472,6 +501,7 @@ $("aboutLink").onclick=e=>{e.preventDefault();$("about").classList.add("show");}
 $("about").onclick=e=>{if(e.target.id==="about")$("about").classList.remove("show");};
 $("tHire").onclick=()=>{onlyHire=!onlyHire; syncToggles(); recompute();};
 $("tLab").onclick=()=>{showLabels=!showLabels; $("tLab").classList.toggle("on",showLabels); draw();};
+$("allCities").onclick=()=>{showAllCities=!showAllCities; renderCities();};
 $("menuBtn").onclick=()=>$("side").classList.toggle("expanded");
 
 // ---------- search ----------
@@ -503,7 +533,7 @@ function search(q){
 function choose(n){const r=results[n]; if(!r) return; $("results").classList.remove("show");
   if(r.t==="sec"){$("q").value=""; soloSector(r.k);}
   else if(r.t==="state"){$("q").value=r.label; if(mode!=="geo") setMode("geo"); setTimeout(()=>clickState(r.si), mode==="geo"?0:1000);}
-  else if(r.t==="city"){$("q").value=r.c; highlight=new Set(pts.map((p,i)=>p.c===r.c?i:-1).filter(i=>i>=0)); closeDetail(); recompute();}
+  else if(r.t==="city"){$("q").value=r.c; if(cityCount.find(x=>x.n===r.c)) focusCity(r.c); else {highlight=new Set(pts.map((p,i)=>p.c===r.c?i:-1).filter(i=>i>=0)); closeDetail(); recompute();}}
   else{$("q").value=r.label; highlight=null; select(r.i,true); recompute();}
   $("q").blur(); $("side").classList.remove("expanded");
 }
@@ -526,6 +556,7 @@ Promise.all([fetch("startups.json").then(r=>{if(!r.ok) throw new Error(r.status)
   for(const p of d.points){ if(p.st) stCount[p.st]=(stCount[p.st]||0)+1; }
   const cc={}; for(const p of d.points){ if(p.gx==null||p.gp!=="city"||!p.c) continue; const o=cc[p.c]||(cc[p.c]={n:p.c,c:0,x:0,y:0}); o.c++; o.x+=p.gx; o.y+=p.gy; }
   cityCount=Object.values(cc).map(o=>({n:o.n,c:o.c,x:o.x/o.c,y:o.y/o.c})).sort((a,b)=>b.c-a.c);
+  setTimeout(renderCities,0);
   pts=d.points; labels=d.labels; sectors=d.meta.sectors; activeSecs=new Set(Object.keys(sectors));
   resize(); fit(); recompute(); $("loading").style.display="none";
   const T=d.meta.tiers||{}; $("sub").textContent=`${pts.length.toLocaleString()} Indian climate startups, ${(T.f||0).toLocaleString()} of them funded or VC-backed. Companies that do similar things sit close together. Click any dot to see its look-alikes.`;

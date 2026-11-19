@@ -154,7 +154,7 @@ def geocode(city_raw, state_raw=""):
                 elif len(key) < 6:
                     continue
             c = max(cands, key=lambda v: v["population"])
-            return c["name"], state_at(c["longitude"], c["latitude"]), c["longitude"], c["latitude"], "city"
+            return deacc(c["name"]), state_at(c["longitude"], c["latitude"]), c["longitude"], c["latitude"], "city"
     # state-level fallback (state field or a state written in the city field)
     st = st_hint or norm_state(text)
     if not st:
