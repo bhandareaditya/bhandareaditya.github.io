@@ -199,8 +199,11 @@ let selected=-1, hoverSim=-1, hoverPt=-1, highlight=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+let lastW=0;
 function resize(){
   dpr=window.devicePixelRatio||1; W=innerWidth; H=innerHeight;
+  if(pts.length && W>200 && H>200 && (lastW<=200 || !isFinite(view.k) || view.k<=0.01)) fit();
+  lastW=W;
   cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+"px"; cv.style.height=H+"px";
   ctx.setTransform(dpr,0,0,dpr,0,0); draw();
 }
@@ -211,7 +214,7 @@ function fit(){
   let a=1e9,b=1e9,c=-1e9,d=-1e9;
   for(const p of pts){if(p.x<a)a=p.x;if(p.x>c)c=p.x;if(p.y<b)b=p.y;if(p.y>d)d=p.y;}
   const mobile=W<720, padL=mobile?50:350, padR=mobile?50:60, padT=mobile?150:50, padB=mobile?90:50;
-  const k=Math.min((W-padL-padR)/(c-a),(H-padT-padB)/(d-b));
+  const k=Math.max(0.05,Math.min(Math.max(80,W-padL-padR)/(c-a),Math.max(80,H-padT-padB)/(d-b)));
   view.k=k; view.x=padL+((W-padL-padR)-(c-a)*k)/2-a*k; view.y=padT+((H-padT-padB)-(d-b)*k)/2-b*k;
 }
 
@@ -439,6 +442,7 @@ document.addEventListener("click",e=>{if(!$("searchwrap").contains(e.target)) $(
 
 // ---------- load ----------
 addEventListener("resize",()=>{resize();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden) resize();});
 fetch("startups.json").then(r=>{if(!r.ok) throw new Error(r.status); return r.json();}).then(d=>{
   pts=d.points; labels=d.labels; sectors=d.meta.sectors; activeSecs=new Set(Object.keys(sectors));
   resize(); fit(); recompute(); $("loading").style.display="none";
